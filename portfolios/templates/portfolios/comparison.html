@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Portfolio comparison</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 1200px;
+            margin: 2rem auto;
+        }
+
+        .chart-container {
+            margin-bottom: 3rem;
+        }
+
+        canvas {
+            max-height: 420px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Portfolio comparison</h1>
+
+    <div class="chart-container">
+        <h2>Portfolio value over time</h2>
+        <canvas id="portfolioValueChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h2>Portfolio 1 weights</h2>
+        <canvas id="portfolio1WeightsChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h2>Portfolio 2 weights</h2>
+        <canvas id="portfolio2WeightsChart"></canvas>
+    </div>
+
+    <script>
+        const portfolio1Id = "{{ portfolio_1_id }}";
+        const portfolio2Id = "{{ portfolio_2_id }}";
+        const startDate = "{{ start_date }}";
+        const endDate = "{{ end_date }}";
+
+        async function fetchPortfolioEvolution(portfolioId) {
+            const url = `/api/portfolios/${portfolioId}/evolution/?fecha_inicio=${startDate}&fecha_fin=${endDate}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status}`);
+            }
+
+            return await response.json();
+        }
+
+        function buildValueDataset(apiData, label) {
+            return {
+                label: label,
+                data: apiData.data.map(row => Number(row.portfolio_value)),
+                fill: false,
+                tension: 0.1,
+            };
+        }
+
+        function getLabels(apiData) {
+            return apiData.data.map(row => row.date);
+        }
+
+        function getAssetNames(apiData) {
+            if (apiData.data.length === 0) {
+                return [];
+            }
+
+            return apiData.data[0].assets.map(asset => asset.asset);
+        }
+
+        function buildWeightDatasets(apiData) {
+            const assetNames = getAssetNames(apiData);
+
+            return assetNames.map(assetName => {
+                return {
+                    label: assetName,
+                    data: apiData.data.map(row => {
+                        const asset = row.assets.find(item => item.asset === assetName);
+                        return asset ? Number(asset.weight) : 0;
+                    }),
+                    fill: true,
+                    tension: 0.1,
+                };
+            });
+        }
+
+        function renderPortfolioValueChart(portfolio1Data, portfolio2Data) {
+            const labels = getLabels(portfolio1Data);
+
+            new Chart(
+                document.getElementById("portfolioValueChart"),
+                {
+                    type: "line",
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            buildValueDataset(portfolio1Data, "Portfolio 1"),
+                            buildValueDataset(portfolio2Data, "Portfolio 2"),
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        interaction: {
+                            mode: "index",
+                            intersect: false,
+                        },
+                        scales: {
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: "Portfolio value",
+                                },
+                            },
+                        },
+                    },
+                }
+            );
+        }
+
+        function renderWeightsChart(canvasId, apiData, title) {
+            const labels = getLabels(apiData);
+            const datasets = buildWeightDatasets(apiData);
+
+            new Chart(
+                document.getElementById(canvasId),
+                {
+                    type: "line",
+                    data: {
+                        labels: labels,
+                        datasets: datasets,
+                    },
+                    options: {
+                        responsive: true,
+                        interaction: {
+                            mode: "index",
+                            intersect: false,
+                        },
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: title,
+                            },
+                        },
+                        scales: {
+                            y: {
+                                stacked: true,
+                                min: 0,
+                                max: 1,
+                                title: {
+                                    display: true,
+                                    text: "Weight",
+                                },
+                            },
+                        },
+                    },
+                }
+            );
+        }
+
+        async function main() {
+            const [portfolio1Data, portfolio2Data] = await Promise.all([
+                fetchPortfolioEvolution(portfolio1Id),
+                fetchPortfolioEvolution(portfolio2Id),
+            ]);
+
+            renderPortfolioValueChart(portfolio1Data, portfolio2Data);
+
+            renderWeightsChart(
+                "portfolio1WeightsChart",
+                portfolio1Data,
+                "Portfolio 1 asset weights"
+            );
+
+            renderWeightsChart(
+                "portfolio2WeightsChart",
+                portfolio2Data,
+                "Portfolio 2 asset weights"
+            );
+        }
+
+        main().catch(error => {
+            console.error(error);
+            document.body.insertAdjacentHTML(
+                "beforeend",
+                `<p style="color: red;">Error loading charts: ${error.message}</p>`
+            );
+        });
+    </script>
+</body>
+</html>
