@@ -10,29 +10,34 @@ class Asset(models.Model):
     class Meta:
         ordering = ["name"]
 
-    def __str__(self) -> str:
-        return str(self.name)
+    def __str__(self) :
+        return self.name
 
 class Portfolio(models.Model):
+    
     name = models.CharField(max_length=100, unique=True)
+    
     initial_value = models.DecimalField(max_digits=20, decimal_places=8)
+    
     start_date = models.DateField()
 
     class Meta:
         ordering = ["name"]
 
-    def __str__(self) -> str:
-        return str(self.name)
+    def __str__(self) :
+        return self.name
 
 
 class AssetPrice(models.Model):
-    # asset is an entity from the Asset model
+    
     asset = models.ForeignKey(
         Asset,
         on_delete=models.CASCADE,
         related_name="prices",
     )
+    
     date = models.DateField()
+    
     price = models.DecimalField(max_digits=20, decimal_places=4)
 
     class Meta :
@@ -45,7 +50,7 @@ class AssetPrice(models.Model):
         ]
 
     
-    def __str__(self) -> str:
+    def __str__(self):
         return f"{self.asset} - {self.date}: {self.price}"
 
         
@@ -90,5 +95,5 @@ class PortfolioAsset(models.Model):
         ]
 
         
-    def __str__(self) -> str:
+    def __str__(self):
         return f"{self.portfolio} - {self.asset}"
