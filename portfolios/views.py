@@ -1,10 +1,12 @@
 from datetime import date
 
 from django.http import HttpRequest, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 
 from portfolios.models import Portfolio
 from portfolios.services import get_portfolio_evolution
+
+
 
 
 def parse_date(value):
@@ -57,4 +59,21 @@ def portfolio_evolution_api(request: HttpRequest, portfolio_id: int) -> JsonResp
             "fecha_fin": end_date,
             "data": data,
         }
+    )
+
+
+
+def comparison_view(request):
+    portfolio_1 = get_object_or_404(Portfolio, name="Portfolio 1")
+    portfolio_2 = get_object_or_404(Portfolio, name="Portfolio 2")
+
+    return render(
+        request,
+        "portfolios/comparison.html",
+        {
+            "portfolio_1_id": portfolio_1.id,
+            "portfolio_2_id": portfolio_2.id,
+            "start_date": "2022-02-15",
+            "end_date": "2023-02-16",
+        },
     )
