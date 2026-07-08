@@ -1,0 +1,3 @@
+
+* Decimal Places
+The Maximum number of digits for prices is 4.
