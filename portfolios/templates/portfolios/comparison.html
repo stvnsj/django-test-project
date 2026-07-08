@@ -3,6 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <title>Portfolio comparison</title>
+    <form id="dateRangeForm" style="margin-bottom: 2rem;">
+      <label>
+        Start date:
+        <input id="startDateInput" type="date" value="{{ start_date }}">
+      </label>
+
+      <label style="margin-left: 1rem;">
+        End date:
+        <input id="endDateInput" type="date" value="{{ end_date }}">
+      </label>
+
+      <button type="submit" style="margin-left: 1rem;">
+        Update charts
+      </button>
+    </form>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -38,161 +53,255 @@
         <canvas id="portfolio2WeightsChart"></canvas>
     </div>
 
-    <script>
-        const portfolio1Id = "{{ portfolio_1_id }}";
-        const portfolio2Id = "{{ portfolio_2_id }}";
-        const startDate = "{{ start_date }}";
-        const endDate = "{{ end_date }}";
+    
+<script>
+    const portfolio1Id = "{{ portfolio_1_id }}";
+    const portfolio2Id = "{{ portfolio_2_id }}";
 
-        async function fetchPortfolioEvolution(portfolioId) {
-            const url = `/api/portfolios/${portfolioId}/evolution/?fecha_inicio=${startDate}&fecha_fin=${endDate}`;
-            const response = await fetch(url);
+    let portfolioValueChart = null;
+    let portfolio1WeightsChart = null;
+    let portfolio2WeightsChart = null;
 
-            if (!response.ok) {
-                throw new Error(`API request failed: ${response.status}`);
-            }
+    function formatMoney(value) {
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: 0,
+        }).format(value);
+    }
 
-            return await response.json();
+    function formatWeight(value) {
+        return new Intl.NumberFormat("en-US", {
+            style: "percent",
+            maximumFractionDigits: 0,
+        }).format(value);
+    }
+
+    async function fetchPortfolioEvolution(portfolioId, startDate, endDate) {
+        const url = `/api/portfolios/${portfolioId}/evolution/?fecha_inicio=${startDate}&fecha_fin=${endDate}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status}`);
         }
 
-        function buildValueDataset(apiData, label) {
+        return await response.json();
+    }
+
+    function buildValueDataset(apiData, label) {
+        return {
+            label: label,
+            data: apiData.data.map(row => Number(row.portfolio_value)),
+            fill: false,
+            tension: 0.1,
+
+            // Reduces visual noise in the line chart.
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            borderWidth: 2,
+        };
+    }
+
+    function getLabels(apiData) {
+        return apiData.data.map(row => row.date);
+    }
+
+    function getAssetNames(apiData) {
+        if (apiData.data.length === 0) {
+            return [];
+        }
+
+        return apiData.data[0].assets.map(asset => asset.asset);
+    }
+
+    function buildWeightDatasets(apiData) {
+        const assetNames = getAssetNames(apiData);
+
+        return assetNames.map(assetName => {
             return {
-                label: label,
-                data: apiData.data.map(row => Number(row.portfolio_value)),
-                fill: false,
+                label: assetName,
+                data: apiData.data.map(row => {
+                    const asset = row.assets.find(item => item.asset === assetName);
+                    return asset ? Number(asset.weight) : 0;
+                }),
+                fill: true,
                 tension: 0.1,
+
+                // Also reduce points in stacked area charts.
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                borderWidth: 1,
             };
+        });
+    }
+
+    function renderPortfolioValueChart(portfolio1Data, portfolio2Data) {
+        const labels = getLabels(portfolio1Data);
+
+        if (portfolioValueChart !== null) {
+            portfolioValueChart.destroy();
         }
 
-        function getLabels(apiData) {
-            return apiData.data.map(row => row.date);
-        }
-
-        function getAssetNames(apiData) {
-            if (apiData.data.length === 0) {
-                return [];
-            }
-
-            return apiData.data[0].assets.map(asset => asset.asset);
-        }
-
-        function buildWeightDatasets(apiData) {
-            const assetNames = getAssetNames(apiData);
-
-            return assetNames.map(assetName => {
-                return {
-                    label: assetName,
-                    data: apiData.data.map(row => {
-                        const asset = row.assets.find(item => item.asset === assetName);
-                        return asset ? Number(asset.weight) : 0;
-                    }),
-                    fill: true,
-                    tension: 0.1,
-                };
-            });
-        }
-
-        function renderPortfolioValueChart(portfolio1Data, portfolio2Data) {
-            const labels = getLabels(portfolio1Data);
-
-            new Chart(
-                document.getElementById("portfolioValueChart"),
-                {
-                    type: "line",
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            buildValueDataset(portfolio1Data, "Portfolio 1"),
-                            buildValueDataset(portfolio2Data, "Portfolio 2"),
-                        ],
+        portfolioValueChart = new Chart(
+            document.getElementById("portfolioValueChart"),
+            {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: [
+                        buildValueDataset(portfolio1Data, "Portfolio 1"),
+                        buildValueDataset(portfolio2Data, "Portfolio 2"),
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: "index",
+                        intersect: false,
                     },
-                    options: {
-                        responsive: true,
-                        interaction: {
-                            mode: "index",
-                            intersect: false,
-                        },
-                        scales: {
-                            y: {
-                                title: {
-                                    display: true,
-                                    text: "Portfolio value",
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${formatMoney(context.parsed.y)}`;
                                 },
                             },
                         },
                     },
-                }
-            );
-        }
-
-        function renderWeightsChart(canvasId, apiData, title) {
-            const labels = getLabels(apiData);
-            const datasets = buildWeightDatasets(apiData);
-
-            new Chart(
-                document.getElementById(canvasId),
-                {
-                    type: "line",
-                    data: {
-                        labels: labels,
-                        datasets: datasets,
-                    },
-                    options: {
-                        responsive: true,
-                        interaction: {
-                            mode: "index",
-                            intersect: false,
-                        },
-                        plugins: {
+                    scales: {
+                        y: {
                             title: {
                                 display: true,
-                                text: title,
+                                text: "Portfolio value",
                             },
-                        },
-                        scales: {
-                            y: {
-                                stacked: true,
-                                min: 0,
-                                max: 1,
-                                title: {
-                                    display: true,
-                                    text: "Weight",
+                            ticks: {
+                                callback: function(value) {
+                                    return formatMoney(value);
                                 },
                             },
                         },
                     },
-                }
-            );
+                },
+            }
+        );
+    }
+
+    function renderWeightsChart(canvasId, apiData, title) {
+        const labels = getLabels(apiData);
+        const datasets = buildWeightDatasets(apiData);
+
+        let chartVariable;
+
+        if (canvasId === "portfolio1WeightsChart") {
+            chartVariable = portfolio1WeightsChart;
+        } else {
+            chartVariable = portfolio2WeightsChart;
         }
 
-        async function main() {
-            const [portfolio1Data, portfolio2Data] = await Promise.all([
-                fetchPortfolioEvolution(portfolio1Id),
-                fetchPortfolioEvolution(portfolio2Id),
-            ]);
-
-            renderPortfolioValueChart(portfolio1Data, portfolio2Data);
-
-            renderWeightsChart(
-                "portfolio1WeightsChart",
-                portfolio1Data,
-                "Portfolio 1 asset weights"
-            );
-
-            renderWeightsChart(
-                "portfolio2WeightsChart",
-                portfolio2Data,
-                "Portfolio 2 asset weights"
-            );
+        if (chartVariable !== null) {
+            chartVariable.destroy();
         }
 
-        main().catch(error => {
-            console.error(error);
-            document.body.insertAdjacentHTML(
-                "beforeend",
-                `<p style="color: red;">Error loading charts: ${error.message}</p>`
-            );
+        const newChart = new Chart(
+            document.getElementById(canvasId),
+            {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: datasets,
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: "index",
+                        intersect: false,
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title,
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${formatWeight(context.parsed.y)}`;
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        y: {
+                            stacked: true,
+                            min: 0,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: "Weight",
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return formatWeight(value);
+                                },
+                            },
+                        },
+                    },
+                },
+            }
+        );
+
+        if (canvasId === "portfolio1WeightsChart") {
+            portfolio1WeightsChart = newChart;
+        } else {
+            portfolio2WeightsChart = newChart;
+        }
+    }
+
+    async function loadCharts(startDate, endDate) {
+        const [portfolio1Data, portfolio2Data] = await Promise.all([
+            fetchPortfolioEvolution(portfolio1Id, startDate, endDate),
+            fetchPortfolioEvolution(portfolio2Id, startDate, endDate),
+        ]);
+
+        renderPortfolioValueChart(portfolio1Data, portfolio2Data);
+
+        renderWeightsChart(
+            "portfolio1WeightsChart",
+            portfolio1Data,
+            "Portfolio 1 asset weights"
+        );
+
+        renderWeightsChart(
+            "portfolio2WeightsChart",
+            portfolio2Data,
+            "Portfolio 2 asset weights"
+        );
+    }
+
+    document
+        .getElementById("dateRangeForm")
+        .addEventListener("submit", event => {
+            event.preventDefault();
+
+            const startDate = document.getElementById("startDateInput").value;
+            const endDate = document.getElementById("endDateInput").value;
+
+            loadCharts(startDate, endDate).catch(error => {
+                console.error(error);
+                alert(`Error loading charts: ${error.message}`);
+            });
         });
-    </script>
+
+    loadCharts(
+        document.getElementById("startDateInput").value,
+        document.getElementById("endDateInput").value
+    ).catch(error => {
+        console.error(error);
+        document.body.insertAdjacentHTML(
+            "beforeend",
+            `<p style="color: red;">Error loading charts: ${error.message}</p>`
+        );
+    });
+</script>
+  
 </body>
 </html>
