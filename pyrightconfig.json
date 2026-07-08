@@ -1,0 +1,15 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+
+  "typeCheckingMode": "basic",
+  "reportAttributeAccessIssue": "none",
+
+  "exclude": [
+    ".venv",
+    "**/.venv",
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/migrations"
+  ]
+}
