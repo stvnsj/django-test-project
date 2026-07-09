@@ -2,7 +2,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+
 
 from django.db import transaction
 from openpyxl import load_workbook
@@ -14,37 +14,37 @@ INITIAL_PORTFOLIO_VALUE = Decimal("1000000000")
 WEIGHTS_SHEET_NAME = "weights"
 PRICES_SHEET_NAME = "Precios"
 
-def to_decimal (value) :
+def to_decimal(value):
     if value is None:
-        raise ValueError("Expected a numeric vlaue, got None")
+        raise ValueError("Expected a numeric value, got None")
 
     return Decimal(str(value))
 
-def to_date(value) :
+def to_date(value):
 
     if isinstance(value, datetime):
         return value.date()
 
-    if isinstance(value,date):
+    if isinstance(value, date):
         return value
 
-    if isinstance(value, int | float):
+    if isinstance(value, (int, float)):
         return from_excel(value).date()
 
     raise ValueError(f"Could not convert value to date: {value!r}")
 
 
-def normalize_asset_name (value) :
+def normalize_asset_name(value):
     if value is None:
         raise ValueError("Asset name cannot be empty")
 
     return str(value).strip()
 
-def create_portfolios(start_date) :
+def create_portfolios(start_date):
     
     portfolio_1, _ = Portfolio.objects.update_or_create(
-        name = "Portfolio 1",
-        defaults = {
+        name="Portfolio 1",
+        defaults={
             "initial_value": INITIAL_PORTFOLIO_VALUE,
             "start_date": start_date
         }
@@ -64,12 +64,12 @@ def create_portfolios(start_date) :
     }
 
 
-def load_assets_from_prices_sheet(prices_sheet) :
+def load_assets_from_prices_sheet(prices_sheet):
     """
-    Create assets using the header row of prices sheet.
-    In precios sheet:
-    - Col A contains dates
-    - Col B contains asset names
+    
+    
+    Create assets from the header row of the prices sheet.
+
     """
     assets = {}
 
@@ -78,14 +78,14 @@ def load_assets_from_prices_sheet(prices_sheet) :
             prices_sheet.cell(row=1, column=column).value
         )
 
-        asset, _ = Asset.objects.get_or_create(name = asset_name)
+        asset, _ = Asset.objects.get_or_create(name=asset_name)
         assets[asset_name] = asset
 
     return assets
 
 def load_prices(prices_sheet, assets):
     """
-    Load all asset prices.
+    Create or update daily prices for all assets.
     """
     for row in range(2, prices_sheet.max_row + 1):
         current_date = to_date(prices_sheet.cell(row=row, column=1).value)
@@ -93,7 +93,7 @@ def load_prices(prices_sheet, assets):
             asset_name = normalize_asset_name(
                 prices_sheet.cell(row=1, column=column).value
             )
-            raw_price=prices_sheet.cell(row=row, column=column).value
+            raw_price = prices_sheet.cell(row=row, column=column).value
             if raw_price is None:
                 continue
             
@@ -144,8 +144,8 @@ def load_initial_weights(weights_sheet, assets, portfolios):
         )
 
 
-def calculate_initial_quantities() -> None:
-    
+def calculate_initial_quantities():
+
     portfolio_assets = PortfolioAsset.objects.select_related(
         "portfolio",
         "asset",
@@ -171,12 +171,12 @@ def calculate_initial_quantities() -> None:
         portfolio_asset.initial_quantity = initial_quantity
         portfolio_asset.save(update_fields=["initial_quantity"])
 
-        
-    
+
+
     
 
 @transaction.atomic
-def load_portfolio_data(file_path: str | Path) -> None:
+def load_portfolio_data(file_path):
     path = Path(file_path)
 
     if not path.exists():

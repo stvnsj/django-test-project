@@ -1,6 +1,6 @@
 from datetime import date
 
-from django.http import HttpRequest, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from portfolios.models import Portfolio
@@ -13,7 +13,7 @@ def parse_date(value):
     return date.fromisoformat(value)
 
 
-def portfolio_evolution_api(request: HttpRequest, portfolio_id: int) -> JsonResponse:
+def portfolio_evolution_api(request, portfolio_id):
     raw_start_date = request.GET.get("fecha_inicio")
     raw_end_date = request.GET.get("fecha_fin")
 

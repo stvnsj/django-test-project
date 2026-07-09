@@ -10,7 +10,7 @@ class Asset(models.Model):
     class Meta:
         ordering = ["name"]
 
-    def __str__(self) :
+    def __str__(self):
         return self.name
 
 class Portfolio(models.Model):
@@ -24,7 +24,7 @@ class Portfolio(models.Model):
     class Meta:
         ordering = ["name"]
 
-    def __str__(self) :
+    def __str__(self):
         return self.name
 
 
@@ -40,9 +40,9 @@ class AssetPrice(models.Model):
     
     price = models.DecimalField(max_digits=20, decimal_places=4)
 
-    class Meta :
+    class Meta:
         ordering = ["date", "asset__name"]
-        constraints=[
+        constraints = [
             models.UniqueConstraint(
                 fields=["asset", "date"],
                 name="unique_asset_price_per_date"
@@ -85,7 +85,7 @@ class PortfolioAsset(models.Model):
         blank=True
     )
 
-    class Meta :
+    class Meta:
         ordering = ["portfolio__name", "asset__name"]
         constraints = [
             models.UniqueConstraint(

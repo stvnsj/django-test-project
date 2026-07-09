@@ -3,27 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <title>Portfolio comparison</title>
-    <form id="dateRangeForm" style="margin-bottom: 2rem;">
-      <label>
-        Start date:
-        <input id="startDateInput" type="date" value="{{ start_date }}">
-      </label>
 
-      <label style="margin-left: 1rem;">
-        End date:
-        <input id="endDateInput" type="date" value="{{ end_date }}">
-      </label>
-
-      <button type="submit" style="margin-left: 1rem;">
-        Update charts
-      </button>
-    </form>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: sans-serif;
             max-width: 1200px;
             margin: 2rem auto;
+        }
+
+        form {
+            margin-bottom: 2rem;
+        }
+
+        label {
+            margin-right: 1rem;
         }
 
         .chart-container {
@@ -35,8 +28,23 @@
         }
     </style>
 </head>
+
 <body>
     <h1>Portfolio comparison</h1>
+
+    <form id="dateRangeForm">
+        <label>
+            Start date:
+            <input id="startDateInput" type="date" value="{{ start_date }}">
+        </label>
+
+        <label>
+            End date:
+            <input id="endDateInput" type="date" value="{{ end_date }}">
+        </label>
+
+        <button type="submit">Update charts</button>
+    </form>
 
     <div class="chart-container">
         <h2>Portfolio value over time</h2>
@@ -53,101 +61,95 @@
         <canvas id="portfolio2WeightsChart"></canvas>
     </div>
 
-    
-<script>
-    const portfolio1Id = "{{ portfolio_1_id }}";
-    const portfolio2Id = "{{ portfolio_2_id }}";
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    let portfolioValueChart = null;
-    let portfolio1WeightsChart = null;
-    let portfolio2WeightsChart = null;
+    <script>
+        const portfolio1Id = "{{ portfolio_1_id }}";
+        const portfolio2Id = "{{ portfolio_2_id }}";
 
-    function formatMoney(value) {
-        return new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-            maximumFractionDigits: 0,
-        }).format(value);
-    }
+        const charts = {};
 
-    function formatWeight(value) {
-        return new Intl.NumberFormat("en-US", {
-            style: "percent",
-            maximumFractionDigits: 0,
-        }).format(value);
-    }
-
-    async function fetchPortfolioEvolution(portfolioId, startDate, endDate) {
-        const url = `/api/portfolios/${portfolioId}/evolution/?fecha_inicio=${startDate}&fecha_fin=${endDate}`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.status}`);
+        function formatMoney(value) {
+            return new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+                maximumFractionDigits: 0,
+            }).format(value);
         }
 
-        return await response.json();
-    }
-
-    function buildValueDataset(apiData, label) {
-        return {
-            label: label,
-            data: apiData.data.map(row => Number(row.portfolio_value)),
-            fill: false,
-            tension: 0.1,
-
-            // Reduces visual noise in the line chart.
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            borderWidth: 2,
-        };
-    }
-
-    function getLabels(apiData) {
-        return apiData.data.map(row => row.date);
-    }
-
-    function getAssetNames(apiData) {
-        if (apiData.data.length === 0) {
-            return [];
+        function formatWeight(value) {
+            return new Intl.NumberFormat("en-US", {
+                style: "percent",
+                maximumFractionDigits: 0,
+            }).format(value);
         }
 
-        return apiData.data[0].assets.map(asset => asset.asset);
-    }
+        async function fetchPortfolioEvolution(portfolioId, startDate, endDate) {
+            const url = `/api/portfolios/${portfolioId}/evolution/?fecha_inicio=${startDate}&fecha_fin=${endDate}`;
+            const response = await fetch(url);
 
-    function buildWeightDatasets(apiData) {
-        const assetNames = getAssetNames(apiData);
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status}`);
+            }
 
-        return assetNames.map(assetName => {
+            return response.json();
+        }
+
+        function getLabels(apiData) {
+            return apiData.data.map(row => row.date);
+        }
+
+        function buildValueDataset(apiData, label) {
             return {
-                label: assetName,
-                data: apiData.data.map(row => {
-                    const asset = row.assets.find(item => item.asset === assetName);
-                    return asset ? Number(asset.weight) : 0;
-                }),
-                fill: true,
+                label: label,
+                data: apiData.data.map(row => Number(row.portfolio_value)),
+                fill: false,
                 tension: 0.1,
-
-                // Also reduce points in stacked area charts.
                 pointRadius: 0,
                 pointHoverRadius: 4,
-                borderWidth: 1,
+                borderWidth: 2,
             };
-        });
-    }
-
-    function renderPortfolioValueChart(portfolio1Data, portfolio2Data) {
-        const labels = getLabels(portfolio1Data);
-
-        if (portfolioValueChart !== null) {
-            portfolioValueChart.destroy();
         }
 
-        portfolioValueChart = new Chart(
-            document.getElementById("portfolioValueChart"),
-            {
+        function buildWeightDatasets(apiData) {
+            if (apiData.data.length === 0) {
+                return [];
+            }
+
+            const assetNames = apiData.data[0].assets.map(asset => asset.asset);
+
+            return assetNames.map(assetName => {
+                return {
+                    label: assetName,
+                    data: apiData.data.map(row => {
+                        const asset = row.assets.find(item => item.asset === assetName);
+                        return asset ? Number(asset.weight) : 0;
+                    }),
+                    fill: true,
+                    tension: 0.1,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    borderWidth: 1,
+                };
+            });
+        }
+
+        function replaceChart(chartName, canvasId, config) {
+            if (charts[chartName]) {
+                charts[chartName].destroy();
+            }
+
+            charts[chartName] = new Chart(
+                document.getElementById(canvasId),
+                config
+            );
+        }
+
+        function renderPortfolioValueChart(portfolio1Data, portfolio2Data) {
+            replaceChart("value", "portfolioValueChart", {
                 type: "line",
                 data: {
-                    labels: labels,
+                    labels: getLabels(portfolio1Data),
                     datasets: [
                         buildValueDataset(portfolio1Data, "Portfolio 1"),
                         buildValueDataset(portfolio2Data, "Portfolio 2"),
@@ -162,7 +164,7 @@
                     plugins: {
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
+                                label: context => {
                                     return `${context.dataset.label}: ${formatMoney(context.parsed.y)}`;
                                 },
                             },
@@ -175,40 +177,20 @@
                                 text: "Portfolio value",
                             },
                             ticks: {
-                                callback: function(value) {
-                                    return formatMoney(value);
-                                },
+                                callback: value => formatMoney(value),
                             },
                         },
                     },
                 },
-            }
-        );
-    }
-
-    function renderWeightsChart(canvasId, apiData, title) {
-        const labels = getLabels(apiData);
-        const datasets = buildWeightDatasets(apiData);
-
-        let chartVariable;
-
-        if (canvasId === "portfolio1WeightsChart") {
-            chartVariable = portfolio1WeightsChart;
-        } else {
-            chartVariable = portfolio2WeightsChart;
+            });
         }
 
-        if (chartVariable !== null) {
-            chartVariable.destroy();
-        }
-
-        const newChart = new Chart(
-            document.getElementById(canvasId),
-            {
+        function renderWeightsChart(chartName, canvasId, apiData) {
+            replaceChart(chartName, canvasId, {
                 type: "line",
                 data: {
-                    labels: labels,
-                    datasets: datasets,
+                    labels: getLabels(apiData),
+                    datasets: buildWeightDatasets(apiData),
                 },
                 options: {
                     responsive: true,
@@ -217,13 +199,9 @@
                         intersect: false,
                     },
                     plugins: {
-                        title: {
-                            display: true,
-                            text: title,
-                        },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
+                                label: context => {
                                     return `${context.dataset.label}: ${formatWeight(context.parsed.y)}`;
                                 },
                             },
@@ -239,69 +217,50 @@
                                 text: "Weight",
                             },
                             ticks: {
-                                callback: function(value) {
-                                    return formatWeight(value);
-                                },
+                                callback: value => formatWeight(value),
                             },
                         },
                     },
                 },
-            }
-        );
-
-        if (canvasId === "portfolio1WeightsChart") {
-            portfolio1WeightsChart = newChart;
-        } else {
-            portfolio2WeightsChart = newChart;
-        }
-    }
-
-    async function loadCharts(startDate, endDate) {
-        const [portfolio1Data, portfolio2Data] = await Promise.all([
-            fetchPortfolioEvolution(portfolio1Id, startDate, endDate),
-            fetchPortfolioEvolution(portfolio2Id, startDate, endDate),
-        ]);
-
-        renderPortfolioValueChart(portfolio1Data, portfolio2Data);
-
-        renderWeightsChart(
-            "portfolio1WeightsChart",
-            portfolio1Data,
-            "Portfolio 1 asset weights"
-        );
-
-        renderWeightsChart(
-            "portfolio2WeightsChart",
-            portfolio2Data,
-            "Portfolio 2 asset weights"
-        );
-    }
-
-    document
-        .getElementById("dateRangeForm")
-        .addEventListener("submit", event => {
-            event.preventDefault();
-
-            const startDate = document.getElementById("startDateInput").value;
-            const endDate = document.getElementById("endDateInput").value;
-
-            loadCharts(startDate, endDate).catch(error => {
-                console.error(error);
-                alert(`Error loading charts: ${error.message}`);
             });
-        });
+        }
 
-    loadCharts(
-        document.getElementById("startDateInput").value,
-        document.getElementById("endDateInput").value
-    ).catch(error => {
-        console.error(error);
-        document.body.insertAdjacentHTML(
-            "beforeend",
-            `<p style="color: red;">Error loading charts: ${error.message}</p>`
-        );
-    });
-</script>
-  
+        async function loadCharts(startDate, endDate) {
+            const [portfolio1Data, portfolio2Data] = await Promise.all([
+                fetchPortfolioEvolution(portfolio1Id, startDate, endDate),
+                fetchPortfolioEvolution(portfolio2Id, startDate, endDate),
+            ]);
+
+            renderPortfolioValueChart(portfolio1Data, portfolio2Data);
+            renderWeightsChart("weights1", "portfolio1WeightsChart", portfolio1Data);
+            renderWeightsChart("weights2", "portfolio2WeightsChart", portfolio2Data);
+        }
+
+        function getSelectedDates() {
+            return {
+                startDate: document.getElementById("startDateInput").value,
+                endDate: document.getElementById("endDateInput").value,
+            };
+        }
+
+        function showError(error) {
+            console.error(error);
+            alert(`Error loading charts: ${error.message}`);
+        }
+
+        document
+            .getElementById("dateRangeForm")
+            .addEventListener("submit", event => {
+                event.preventDefault();
+
+                const dates = getSelectedDates();
+
+                loadCharts(dates.startDate, dates.endDate).catch(showError);
+            });
+
+        const dates = getSelectedDates();
+
+        loadCharts(dates.startDate, dates.endDate).catch(showError);
+    </script>
 </body>
 </html>
