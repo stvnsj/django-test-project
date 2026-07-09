@@ -14,6 +14,7 @@ def parse_date(value):
 
 
 def portfolio_evolution_api(request, portfolio_id):
+    
     raw_start_date = request.GET.get("fecha_inicio")
     raw_end_date = request.GET.get("fecha_fin")
 
@@ -28,6 +29,7 @@ def portfolio_evolution_api(request, portfolio_id):
     try:
         start_date = parse_date(raw_start_date)
         end_date = parse_date(raw_end_date)
+        
     except ValueError:
         return JsonResponse(
             {
