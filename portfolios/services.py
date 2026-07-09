@@ -5,14 +5,13 @@ from portfolios.models import AssetPrice, Portfolio, PortfolioAsset
 
 
 def get_portfolio_evolution(
-    portfolio: Portfolio,
-    start_date: date,
-    end_date: date,
+    portfolio,
+    start_date,
+    end_date
 ):
     """
     Return portfolio evolution between two dates.
     """
-
     
     portfolio_assets = list(
         PortfolioAsset.objects.select_related("asset")
@@ -20,12 +19,8 @@ def get_portfolio_evolution(
         .order_by("asset__name")
     )
 
-
     asset_ids = [portfolio_asset.asset_id for portfolio_asset in portfolio_assets]
 
-
-
-  
     # Load prices for those assets in the requested period.
     prices = (
         AssetPrice.objects.select_related("asset")
@@ -40,18 +35,12 @@ def get_portfolio_evolution(
     # Group prices by date and asset id.
     prices_by_date = {}
 
-    
-    for price in prices:
-        
+    for price in prices:        
         prices_by_date.setdefault(price.date, {})
-        
         prices_by_date[price.date][price.asset_id] = price
         
-
     result = []
 
-    
-    
     # Build one response row per date
     for current_date, prices_for_date in prices_by_date.items():
         
@@ -59,12 +48,12 @@ def get_portfolio_evolution(
         portfolio_value = Decimal("0")
 
         for portfolio_asset in portfolio_assets:
+            
             if portfolio_asset.initial_quantity is None:
                 raise ValueError(
                     f"Missing initial quantity for {portfolio_asset}"
                 )
 
-            
             price = prices_for_date.get(portfolio_asset.asset_id)
 
             if price is None:
