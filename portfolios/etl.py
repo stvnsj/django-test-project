@@ -28,9 +28,6 @@ def to_date(value):
     if isinstance(value, date):
         return value
 
-    if isinstance(value, (int, float)):
-        return from_excel(value).date()
-
     raise ValueError(f"Could not convert value to date: {value!r}")
 
 
