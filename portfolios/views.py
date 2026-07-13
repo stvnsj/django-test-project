@@ -21,7 +21,7 @@ def portfolio_evolution_api(request, portfolio_id):
     if raw_start_date is None or raw_end_date is None:
         return JsonResponse(
             {
-                "error": "fecha_inicio and fecha_fin are required. Use YYYY-MM-DD format."
+                "error": "fecha_inicio y fecha_fin son requeridos. Use el formato YYYY-MM-DD."
             },
             status=400,
         )
@@ -33,7 +33,7 @@ def portfolio_evolution_api(request, portfolio_id):
     except ValueError:
         return JsonResponse(
             {
-                "error": "Invalid date format. Use YYYY-MM-DD."
+                "error": "Formato de fecha inválido. Use YYYY-MM-DD."
             },
             status=400,
         )
@@ -41,7 +41,7 @@ def portfolio_evolution_api(request, portfolio_id):
     if start_date > end_date:
         return JsonResponse(
             {
-                "error": "fecha_inicio must be before or equal to fecha_fin."
+                "error": "fecha_inicio debe ser anterior o igual a fecha_fin."
             },
             status=400,
         )

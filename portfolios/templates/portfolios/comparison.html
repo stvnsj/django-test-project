@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Portfolio comparison</title>
+    <title>Comparación de portafolios</title>
 
     <style>
         body {
@@ -30,34 +30,34 @@
 </head>
 
 <body>
-    <h1>Portfolio comparison</h1>
+    <h1>Comparación de portafolios</h1>
 
     <form id="dateRangeForm">
         <label>
-            Start date:
+            Fecha inicio:
             <input id="startDateInput" type="date" value="{{ start_date }}">
         </label>
 
         <label>
-            End date:
+            Fecha fin:
             <input id="endDateInput" type="date" value="{{ end_date }}">
         </label>
 
-        <button type="submit">Update charts</button>
+        <button type="submit">Actualizar gráficos</button>
     </form>
 
     <div class="chart-container">
-        <h2>Portfolio value over time</h2>
+        <h2>Evolución del valor del portafolio</h2>
         <canvas id="portfolioValueChart"></canvas>
     </div>
 
     <div class="chart-container">
-        <h2>Portfolio 1 weights</h2>
+        <h2>Ponderaciones del Portafolio 1</h2>
         <canvas id="portfolio1WeightsChart"></canvas>
     </div>
 
     <div class="chart-container">
-        <h2>Portfolio 2 weights</h2>
+        <h2>Ponderaciones del Portafolio 2</h2>
         <canvas id="portfolio2WeightsChart"></canvas>
     </div>
 
@@ -70,7 +70,7 @@
         const charts = {};
 
         function formatMoney(value) {
-            return new Intl.NumberFormat("en-US", {
+            return new Intl.NumberFormat("es-CL", {
                 style: "currency",
                 currency: "USD",
                 maximumFractionDigits: 0,
@@ -78,7 +78,7 @@
         }
 
         function formatWeight(value) {
-            return new Intl.NumberFormat("en-US", {
+            return new Intl.NumberFormat("es-CL", {
                 style: "percent",
                 maximumFractionDigits: 0,
             }).format(value);
@@ -89,7 +89,9 @@
             const response = await fetch(url);
 
             if (!response.ok) {
-                throw new Error(`API request failed: ${response.status}`);
+                const errorData = await response.json().catch(() => null);
+                const message = errorData?.error || `La solicitud a la API falló: ${response.status}`;
+                throw new Error(message);
             }
 
             return response.json();
@@ -151,8 +153,8 @@
                 data: {
                     labels: getLabels(portfolio1Data),
                     datasets: [
-                        buildValueDataset(portfolio1Data, "Portfolio 1"),
-                        buildValueDataset(portfolio2Data, "Portfolio 2"),
+                        buildValueDataset(portfolio1Data, "Portafolio 1"),
+                        buildValueDataset(portfolio2Data, "Portafolio 2"),
                     ],
                 },
                 options: {
@@ -174,7 +176,7 @@
                         y: {
                             title: {
                                 display: true,
-                                text: "Portfolio value",
+                                text: "Valor del portafolio",
                             },
                             ticks: {
                                 callback: value => formatMoney(value),
@@ -214,7 +216,7 @@
                             max: 1,
                             title: {
                                 display: true,
-                                text: "Weight",
+                                text: "Ponderación",
                             },
                             ticks: {
                                 callback: value => formatWeight(value),
@@ -245,7 +247,7 @@
 
         function showError(error) {
             console.error(error);
-            alert(`Error loading charts: ${error.message}`);
+            alert(`Error al cargar los gráficos: ${error.message}`);
         }
 
         document

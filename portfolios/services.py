@@ -51,13 +51,15 @@ def get_portfolio_evolution(
             
             if portfolio_asset.initial_quantity is None:
                 raise ValueError(
-                    f"Missing initial quantity for {portfolio_asset}"
+                    f"Falta la cantidad inicial para {portfolio_asset}"
                 )
 
             price = prices_for_date.get(portfolio_asset.asset_id)
 
             if price is None:
-                continue
+                raise ValueError(
+                    f"Falta el precio del activo {portfolio_asset.asset} en la fecha {current_date}"
+                )
 
             
             asset_value = price.price * portfolio_asset.initial_quantity
@@ -76,7 +78,9 @@ def get_portfolio_evolution(
             )
 
         if portfolio_value == 0:
-            continue
+            raise ValueError(
+                f"El valor del portafolio es cero en la fecha {current_date}; no se pueden calcular los weights"
+            )
 
         for asset_entry in asset_entries:
             asset_entry["weight"] = asset_entry["asset_value"] / portfolio_value

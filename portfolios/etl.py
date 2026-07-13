@@ -6,7 +6,6 @@ from pathlib import Path
 
 from django.db import transaction
 from openpyxl import load_workbook
-from openpyxl.utils.datetime import from_excel
 
 from portfolios.models import Asset, AssetPrice, Portfolio, PortfolioAsset
 
@@ -35,7 +34,19 @@ def normalize_asset_name(value):
     if value is None:
         raise ValueError("Asset name cannot be empty")
 
-    return str(value).strip()
+    name = str(value).strip()
+
+    if name == "":
+        raise ValueError("Asset name cannot be empty")
+
+    return name
+
+
+def validate_weight(weight, row, column):
+    if weight < Decimal("0") or weight > Decimal("1"):
+        raise ValueError(
+            f"Invalid weight at row {row}, column {column}: {weight}"
+        )
 
 def create_portfolios(start_date):
     
@@ -92,16 +103,24 @@ def load_prices(prices_sheet, assets):
             )
             raw_price = prices_sheet.cell(row=row, column=column).value
             if raw_price is None:
-                continue
+                raise ValueError(
+                    f"Missing price at row {row}, column {column}"
+                )
             
+            price = to_decimal(raw_price)
+
+            if price <= Decimal("0"):
+                raise ValueError(
+                    f"Invalid price at row {row}, column {column}: {price}"
+                )
+
             AssetPrice.objects.update_or_create(
                 asset=assets[asset_name],
                 date=current_date,
                 defaults={
-                    "price": to_decimal(raw_price)
+                    "price": price,
                 }
             )
-
 
             
 def load_initial_weights(weights_sheet, assets, portfolios):
@@ -109,8 +128,8 @@ def load_initial_weights(weights_sheet, assets, portfolios):
         raw_asset_name = weights_sheet.cell(row=row, column=2).value
 
         if raw_asset_name is None:
-            continue
-
+            break
+        
         asset_name = normalize_asset_name(raw_asset_name)
 
         if asset_name not in assets:
@@ -123,6 +142,9 @@ def load_initial_weights(weights_sheet, assets, portfolios):
 
         portfolio_1_weight = to_decimal(weights_sheet.cell(row=row, column=3).value)
         portfolio_2_weight = to_decimal(weights_sheet.cell(row=row, column=4).value)
+
+        validate_weight(portfolio_1_weight, row, 3)
+        validate_weight(portfolio_2_weight, row, 4)
 
         PortfolioAsset.objects.update_or_create(
             portfolio=portfolios["portfolio_1"],
